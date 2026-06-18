@@ -32,10 +32,10 @@ Downloads audiobooks from multiple sites, tags each chapter with ID3 metadata, a
 
 Download or clone this repo, then:
 
-- **macOS** — double-click `run.command`. Opens Terminal and installs everything automatically (Homebrew, FFmpeg, uv) on the first run.
+- **macOS** — double-click `Audiobook Downloader.app` (or `run.command` if you prefer Terminal directly). Installs everything automatically (Homebrew, FFmpeg, uv) on the first run.
 - **Windows** — double-click `run.bat`. Installs FFmpeg (via winget) and uv automatically on the first run.
 
-> **macOS note:** The first time you open `run.command`, macOS may block it. Right-click → **Open** to allow it once.
+> **macOS note:** The first time you open the app, macOS may block it. Right-click → **Open** to allow it once.
 
 After the first run, startup is instant.
 

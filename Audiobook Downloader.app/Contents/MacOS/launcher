@@ -1,0 +1,10 @@
+#!/bin/bash
+# Navigate from .app/Contents/MacOS/ up three levels to the repo root
+REPO_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+
+osascript <<EOF
+tell application "Terminal"
+    activate
+    do script "cd $(printf '%q' "$REPO_DIR") && bash run.command"
+end tell
+EOF
