@@ -28,6 +28,21 @@ Downloads audiobooks from multiple sites, tags each chapter with ID3 metadata, a
 
 ## Setup
 
+### Option 1 — Double-click (no setup required)
+
+Download or clone this repo, then:
+
+- **macOS** — double-click `run.command`. Opens Terminal and installs everything automatically (Homebrew, FFmpeg, uv) on the first run.
+- **Windows** — double-click `run.bat`. Installs FFmpeg (via winget) and uv automatically on the first run.
+
+> **macOS note:** The first time you open `run.command`, macOS may block it. Right-click → **Open** to allow it once.
+
+After the first run, startup is instant.
+
+---
+
+### Option 2 — Command line (manual setup)
+
 Requires [Python 3.11+](https://www.python.org/downloads/) and [FFmpeg](https://ffmpeg.org/).
 
 **Install FFmpeg:**
@@ -43,13 +58,15 @@ sudo apt install ffmpeg
 winget install ffmpeg
 ```
 
-**Install dependencies and run:**
+**Run with uv (recommended — no separate install step):**
 
 ```bash
-# Using uv (recommended)
 uv run main.py
+```
 
-# Using pip
+**Run with pip:**
+
+```bash
 pip install -r requirements.txt
 python main.py
 ```

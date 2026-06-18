@@ -44,37 +44,80 @@ def create_combined_audiobook(book_data, book_dir, chapter_files):
             # repr() produces a quoted string with any single-quotes escaped
             f.write(f"file {repr(path)}\n")
 
-    console.print("\n[cyan]Combining chapters with FFmpeg...[/cyan]")
-    try:
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-f", "concat", "-safe", "0",
-                "-i", concat_list,
-                "-map_metadata", "-1",
-                "-c", "copy",
-                "-y", "-loglevel", "error",
-                combined_path,
-            ],
-            check=True,
-        )
-    except subprocess.CalledProcessError:
-        console.print("[red]FFmpeg failed to create combined file.[/red]")
-        return
-    finally:
-        if os.path.exists(concat_list):
-            os.remove(concat_list)
-
-    # Measure each chapter's duration to compute timestamps
+    # Measure each chapter's duration first (needed for both progress and CHAP markers)
     timestamps_ms = []
+    chapter_durations_s = []
     cumulative = 0.0
     for path in chapter_files:
         timestamps_ms.append(int(cumulative * 1000))
         try:
-            cumulative += MP3File(path).info.length
+            dur = MP3File(path).info.length
         except Exception:
-            pass
+            dur = 0.0
+        chapter_durations_s.append(dur)
+        cumulative += dur
     total_ms = int(cumulative * 1000)
+    total_s = cumulative
+
+    n = len(chapter_files)
+    console.print(f"\n[cyan]Combining {n} chapters (~{int(total_s // 60)} min)...[/cyan]")
+
+    with Progress(console=console) as progress:
+        task = progress.add_task("[cyan]Combining...", total=n)
+
+        # Run ffmpeg in a subprocess and track progress via -progress pipe
+        progress_read, progress_write = os.pipe()
+        try:
+            proc = subprocess.Popen(
+                [
+                    "ffmpeg",
+                    "-f", "concat", "-safe", "0",
+                    "-i", concat_list,
+                    "-map_metadata", "-1",
+                    "-c:a", "libmp3lame", "-q:a", "2",
+                    "-progress", f"pipe:{progress_write}",
+                    "-y", "-loglevel", "error",
+                    combined_path,
+                ],
+                pass_fds=(progress_write,),
+            )
+            os.close(progress_write)
+
+            buf = b""
+            current_chapter = 0
+            with os.fdopen(progress_read, "rb") as pf:
+                for raw in pf:
+                    buf += raw
+                    if b"\n" not in buf:
+                        continue
+                    line, buf = buf.split(b"\n", 1)
+                    key, _, val = line.decode(errors="ignore").partition("=")
+                    if key.strip() == "out_time_us":
+                        try:
+                            elapsed_s = int(val.strip()) / 1_000_000
+                        except ValueError:
+                            continue
+                        # Advance chapter counter based on elapsed time
+                        new_chapter = 0
+                        for idx, start_ms in enumerate(timestamps_ms):
+                            if elapsed_s * 1000 >= start_ms:
+                                new_chapter = idx + 1
+                        new_chapter = min(new_chapter, n)
+                        if new_chapter > current_chapter:
+                            chap_title = book_data["chapters"][new_chapter - 1]["title"] if new_chapter <= len(book_data["chapters"]) else f"Chapter {new_chapter}"
+                            progress.update(task, completed=new_chapter, description=f"[cyan]Chapter {new_chapter}/{n}: {chap_title}")
+                            current_chapter = new_chapter
+
+            proc.wait()
+            if proc.returncode != 0:
+                console.print("[red]FFmpeg failed to create combined file.[/red]")
+                return
+        except Exception as e:
+            console.print(f"[red]FFmpeg error: {e}[/red]")
+            return
+        finally:
+            if os.path.exists(concat_list):
+                os.remove(concat_list)
 
     # Build fresh ID3 tag with chapter markers
     id3 = ID3()
@@ -128,6 +171,17 @@ def create_combined_audiobook(book_data, book_dir, chapter_files):
 
     id3.save(combined_path, v2_version=3)
     console.print(f"[bold green]Combined file saved:[/bold green] {combined_path}")
+
+    # Clean up individual chapter files
+    deleted = 0
+    for path in chapter_files:
+        try:
+            os.remove(path)
+            deleted += 1
+        except OSError:
+            pass
+    if deleted:
+        console.print(f"[dim]Removed {deleted} individual chapter file(s).[/dim]")
 
 
 def download_and_tag_audiobook(book_data):
