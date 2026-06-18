@@ -28,16 +28,21 @@ Downloads audiobooks from multiple sites, tags each chapter with ID3 metadata, a
 
 ## Setup
 
-### Option 1 — Double-click (no setup required)
+### Option 1 — Download and double-click (no setup required)
 
-**macOS** — clone the repo and double-click `Audiobook Downloader.app`. Installs everything automatically (Homebrew, FFmpeg, uv) on the first run.
+**macOS**
+
+[![Download macOS](https://img.shields.io/badge/Download-macOS-black?logo=apple)](https://github.com/talir0drigues/audiobook-magic/releases/latest/download/AudiobookDownloader-macOS.zip)
+
+Unzip and double-click `Audiobook Downloader.app`. Installs everything automatically (Homebrew, FFmpeg, uv) on the first run.
 
 > First time only: macOS may block it. Right-click → **Open** to allow it once.
 
-**Windows** — two ways:
+**Windows**
 
-- **Standalone `.exe`** (recommended): download `AudiobookDownloader.exe` from the [latest release](../../releases/latest). Requires [FFmpeg](https://ffmpeg.org/) (`winget install ffmpeg`).
-- **Script**: double-click `run.bat` in the repo. Auto-installs uv and FFmpeg on first run.
+[![Download Windows](https://img.shields.io/badge/Download-Windows-0078D4?logo=windows)](https://github.com/talir0drigues/audiobook-magic/releases/latest/download/AudiobookDownloader.exe)
+
+Requires [FFmpeg](https://ffmpeg.org/) — install it once with `winget install ffmpeg`.
 
 > First time only: Windows SmartScreen may warn "unrecognized app". Click **More info → Run anyway**.
 

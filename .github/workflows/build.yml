@@ -1,4 +1,4 @@
-name: Build Windows App
+name: Build Apps
 
 on:
   push:
@@ -7,6 +7,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ── Build macOS .app zip ────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip app bundle
+        run: zip -r "AudiobookDownloader-macOS.zip" "Audiobook Downloader.app"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudiobookDownloader-macOS
+          path: AudiobookDownloader-macOS.zip
+          retention-days: 30
+
   # ── Build Windows .exe ──────────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
@@ -58,12 +75,17 @@ jobs:
 
   # ── Create GitHub Release (only on version tags) ────────────────────────
   release:
-    needs: build-windows
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
+      - name: Download macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: AudiobookDownloader-macOS
+
       - name: Download Windows build
         uses: actions/download-artifact@v4
         with:
@@ -78,9 +100,12 @@ jobs:
 
             | Platform | File | Notes |
             |---|---|---|
+            | **macOS** | `AudiobookDownloader-macOS.zip` below | Unzip, double-click the app. FFmpeg auto-installed on first run. |
             | **Windows** | `AudiobookDownloader.exe` below | Requires [FFmpeg](https://ffmpeg.org/) — run `winget install ffmpeg` |
-            | **macOS** | Clone the repo, double-click `Audiobook Downloader.app` | FFmpeg auto-installed on first run |
 
+            > **macOS note:** First time only — right-click → **Open** to bypass Gatekeeper.
             > **Windows note:** SmartScreen may warn "unrecognized app". Click **More info → Run anyway** to proceed.
-          files: AudiobookDownloader.exe
+          files: |
+            AudiobookDownloader-macOS.zip
+            AudiobookDownloader.exe
           generate_release_notes: true
