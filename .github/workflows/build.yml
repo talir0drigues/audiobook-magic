@@ -1,0 +1,86 @@
+name: Build Windows App
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  # ── Build Windows .exe ──────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies + build tools
+        run: |
+          uv sync
+          uv pip install pyinstaller pillow
+
+      - name: Create Windows icon (.ico)
+        run: |
+          uv run python -c "
+          from PIL import Image
+          img = Image.open('Audiobook Downloader.app/Contents/Resources/AppIcon_source.png').convert('RGBA')
+          img.save('icon.ico', format='ICO', sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)])
+          print('icon.ico created')
+          "
+
+      - name: Build executable
+        run: |
+          uv run pyinstaller `
+            --onefile `
+            --console `
+            --name "AudiobookDownloader" `
+            --icon icon.ico `
+            --collect-all yt_dlp `
+            --collect-all mutagen `
+            --collect-all rich `
+            --collect-all bs4 `
+            --hidden-import scrapers.tokybook `
+            --hidden-import scrapers.audiozaic `
+            --hidden-import scrapers.zaudiobooks `
+            --hidden-import scrapers.generic `
+            main.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudiobookDownloader-Windows
+          path: dist/AudiobookDownloader.exe
+          retention-days: 30
+
+  # ── Create GitHub Release (only on version tags) ────────────────────────
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: AudiobookDownloader-Windows
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ github.ref_name }}"
+          body: |
+            ## Download
+
+            | Platform | File | Notes |
+            |---|---|---|
+            | **Windows** | `AudiobookDownloader.exe` below | Requires [FFmpeg](https://ffmpeg.org/) — run `winget install ffmpeg` |
+            | **macOS** | Clone the repo, double-click `Audiobook Downloader.app` | FFmpeg auto-installed on first run |
+
+            > **Windows note:** SmartScreen may warn "unrecognized app". Click **More info → Run anyway** to proceed.
+          files: AudiobookDownloader.exe
+          generate_release_notes: true
