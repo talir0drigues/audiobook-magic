@@ -36,7 +36,10 @@ console = Console()
 def create_combined_audiobook(book_data, book_dir, chapter_files):
     """Concatenates chapter MP3s into one file and embeds ID3 chapter markers."""
     title = book_data["title"]
-    combined_path = os.path.join(book_dir, f"{title} [Combined].mp3")
+    author = book_data.get("author", "")
+    combined_name = f"{title} - {author}" if author else title
+    combined_name = sanitize_book_title(combined_name)
+    combined_path = os.path.join(book_dir, f"{combined_name}.mp3")
     concat_list = os.path.join(book_dir, "_concat.txt")
 
     with open(concat_list, "w", encoding="utf-8") as f:
@@ -121,6 +124,7 @@ def create_combined_audiobook(book_data, book_dir, chapter_files):
 
     # Build fresh ID3 tag with chapter markers
     id3 = ID3()
+    id3.add(TIT2(encoding=3, text=title))
     id3.add(TALB(encoding=3, text=title))
     id3.add(TCON(encoding=3, text="Audiobook"))
     if book_data.get("author"):
@@ -171,6 +175,11 @@ def create_combined_audiobook(book_data, book_dir, chapter_files):
 
     id3.save(combined_path, v2_version=3)
     console.print(f"[bold green]Combined file saved:[/bold green] {combined_path}")
+    if chapter_ids:
+        console.print(
+            f"[dim]  {len(chapter_ids)} chapter markers embedded. "
+            "Visible in Overcast, Podcast Addict, and other podcast/audiobook apps.[/dim]"
+        )
 
     # Clean up individual chapter files
     deleted = 0

@@ -103,6 +103,20 @@ Type `y` to confirm, `n` to check the next site. Once confirmed, the script will
 3. Download and tag each chapter into `Audiobooks/<Title>/`
 4. Ask whether to create a combined single-file audiobook with chapter markers
 
+## Playing the Combined File
+
+The combined MP3 has embedded chapter markers (ID3 CHAP/CTOC). General music players ignore these — use a podcast or audiobook app to get chapter navigation and position memory.
+
+**iOS (free)**
+- [BookPlayer](https://apps.apple.com/app/bookplayer/id1138219998) — best option; shows chapters, remembers position, speed control, sleep timer
+
+**Android (free)**
+- [Voice Audiobook Player](https://play.google.com/store/apps/details?id=de.ph1b.audiobook) — open source, clean UI, remembers position per book
+- [Smart AudioBook Player](https://play.google.com/store/apps/details?id=ak.alizandro.smartaudiobookplayer) — free tier available, chapter support, speed control
+- [Listen Audiobook Player](https://play.google.com/store/apps/details?id=com.acmeandroid.listen) — free, handles large single-file audiobooks well
+
+> **Note:** Chapter navigation (skipping between chapters) only works in apps that support ID3 chapter markers. All apps above do. VLC plays the file but shows no chapter UI.
+
 ## Adding a New Site
 
 Most audiobook sites follow the same WordPress pattern. Add a config entry to `scrapers/generic.py`:
