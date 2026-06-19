@@ -1,12 +1,11 @@
 #!/bin/bash
-# Resources/ lives one level up from MacOS/ — always correct regardless of
-# where the .app is placed (Applications, Downloads, anywhere).
-RESOURCES="$(cd "$(dirname "$0")/../Resources" && pwd)"
-cd "$RESOURCES"
-
 # .app bundles have a minimal PATH — add common uv install locations
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
+RESOURCES="$(cd "$(dirname "$0")/../Resources" && pwd)"
+# macOS App Translocation makes the .app read-only when run from a quarantined
+# location. Use Application Support as the writable working directory instead.
+APP_DATA="$HOME/Library/Application Support/AudiobookDownloader"
 LOG="$TMPDIR/audiobook-downloader-launch.log"
 
 _dialog() {
@@ -29,6 +28,11 @@ fi
 if ! command -v uv &>/dev/null; then
     _error "Could not install uv.\nPlease install it from https://docs.astral.sh/uv/ then reopen the app."
 fi
+
+# ── Copy source files to writable App Support directory ────────────────────
+mkdir -p "$APP_DATA"
+cp -r "$RESOURCES"/. "$APP_DATA/" >>"$LOG" 2>&1
+cd "$APP_DATA"
 
 # ── Sync dependencies (downloads PyQt6 ~200 MB on first run) ───────────────
 if ! uv sync >>"$LOG" 2>&1; then
