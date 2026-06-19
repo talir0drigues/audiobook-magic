@@ -82,7 +82,6 @@ jobs:
           # a timeout and treat that as a pass.
           $proc = Start-Process -FilePath "dist\AudiobookDownloader.exe" `
             -PassThru -NoNewWindow `
-            -RedirectStandardInput  "NUL" `
             -RedirectStandardOutput smoke_out.txt `
             -RedirectStandardError  smoke_err.txt
           $exited = $proc.WaitForExit(15000)   # 15-second timeout
