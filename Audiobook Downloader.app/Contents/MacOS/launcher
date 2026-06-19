@@ -1,10 +1,24 @@
 #!/bin/bash
-# Navigate from .app/Contents/MacOS/ up three levels to the repo root
+# Navigate from .app/Contents/MacOS/ up three levels to the project root
 REPO_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$REPO_DIR"
 
-osascript <<EOF
-tell application "Terminal"
-    activate
-    do script "cd $(printf '%q' "$REPO_DIR") && bash run.command"
-end tell
-EOF
+# .app bundles have a minimal PATH — add common uv install locations
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+_dialog() { osascript -e "display dialog \"$1\" buttons {\"OK\"} default button \"OK\"" 2>/dev/null; }
+
+# ── Install uv if missing ───────────────────────────────────────────────────
+if ! command -v uv &>/dev/null; then
+    _dialog "Installing uv (Python manager) — this only happens once."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+fi
+
+if ! command -v uv &>/dev/null; then
+    _dialog "Could not install uv. Please install it from https://docs.astral.sh/uv/ then reopen the app."
+    exit 1
+fi
+
+# ── Launch GUI (FFmpeg check is handled inside the app) ────────────────────
+exec uv run gui.py

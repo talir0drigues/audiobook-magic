@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QProgressBar,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
 from PyQt6.QtGui import QPixmap, QPainter, QPainterPath
@@ -1114,7 +1115,17 @@ if __name__ == "__main__":
     import subprocess
 
     if subprocess.run(["ffmpeg", "-version"], capture_output=True).returncode != 0:
-        print("Error: ffmpeg is not installed. See README for install instructions.")
+        app = QApplication(sys.argv)
+        msg = QMessageBox()
+        msg.setWindowTitle("FFmpeg required")
+        msg.setText(
+            "FFmpeg is not installed.\n\n"
+            "Install it with Homebrew:\n"
+            "  brew install ffmpeg\n\n"
+            "Or download from https://ffmpeg.org/"
+        )
+        msg.setIcon(QMessageBox.Icon.Critical)
+        msg.exec()
         sys.exit(1)
 
     app = QApplication(sys.argv)
