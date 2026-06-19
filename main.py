@@ -211,7 +211,7 @@ def download_and_tag_audiobook(book_data):
 
     downloaded_files = []
 
-    with Progress() as progress:
+    with Progress(console=console) as progress:
         task = progress.add_task(
             f"[cyan]Downloading {sanitized_title}...", total=total_chapters
         )

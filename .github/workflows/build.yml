@@ -66,11 +66,13 @@ jobs:
             --collect-all mutagen `
             --collect-all rich `
             --collect-all bs4 `
+            --collect-all textual `
+            --collect-all PIL `
             --hidden-import scrapers.tokybook `
             --hidden-import scrapers.audiozaic `
             --hidden-import scrapers.zaudiobooks `
             --hidden-import scrapers.generic `
-            main.py
+            ui.py
 
       - name: Smoke test executable
         run: |

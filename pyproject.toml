@@ -20,4 +20,6 @@ dependencies = [
     "urllib3==2.5.0",
     "websockets==15.0.1",
     "yt-dlp==2025.8.22",
+    "textual>=0.80.0",
+    "pillow>=11.0.0",
 ]

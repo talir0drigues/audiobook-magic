@@ -70,7 +70,13 @@ sudo apt install ffmpeg
 winget install ffmpeg
 ```
 
-**Run with uv (recommended — no separate install step):**
+**Run the UI (recommended):**
+
+```bash
+uv run ui.py
+```
+
+**Run the CLI (terminal text interface):**
 
 ```bash
 uv run main.py
