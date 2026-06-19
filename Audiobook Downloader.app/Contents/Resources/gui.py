@@ -260,9 +260,18 @@ class FetchWorker(QThread):
 
     def run(self) -> None:
         try:
+            import requests as _req
             data = self._scraper.fetch_book_data(self._url)
             if data:
                 data["title"] = sanitize_book_title(data.get("title", "Unknown Book"))
+                cover_url = data.get("cover_url")
+                if cover_url:
+                    try:
+                        r = _req.get(cover_url, timeout=10)
+                        if r.ok:
+                            data["artwork_data"] = r.content
+                    except Exception:
+                        pass
         except Exception:
             data = None
         self.book_ready.emit(data)
@@ -635,17 +644,8 @@ class SearchScreen(QWidget):
         pl.setContentsMargins(28, 28, 28, 28)
         pl.setSpacing(0)
 
-        # Back nav
-        nav = QHBoxLayout()
-        nav.setSpacing(10)
-        back_nav = QPushButton("← Back")
-        back_nav.setObjectName("ghost")
-        back_nav.clicked.connect(self._win.pop_screen)
-        heading = _lbl(f'Results for "{self._query}"', 15, _TEXT, bold=True)
-        nav.addWidget(back_nav)
-        nav.addWidget(heading)
-        nav.addStretch()
-        pl.addLayout(nav)
+        # Heading
+        pl.addWidget(_lbl(f'Results for "{self._query}"', 15, _TEXT, bold=True))
         pl.addSpacing(18)
 
         # Status / spinner label
@@ -664,10 +664,14 @@ class SearchScreen(QWidget):
 
         # Actions
         actions = QHBoxLayout()
+        back_nav = QPushButton("← Back")
+        back_nav.setObjectName("ghost")
+        back_nav.clicked.connect(self._win.pop_screen)
         self._open_btn = QPushButton("Open Selected  →")
         self._open_btn.setObjectName("primary")
         self._open_btn.setEnabled(False)
         self._open_btn.clicked.connect(self._open_selected)
+        actions.addWidget(back_nav)
         actions.addStretch()
         actions.addWidget(self._open_btn)
         pl.addLayout(actions)
@@ -705,8 +709,9 @@ class SearchScreen(QWidget):
         v = QVBoxLayout(frame)
         v.setContentsMargins(14, 12, 14, 12)
         v.setSpacing(3)
-        v.addWidget(_lbl(title, 13, _TEXT, bold=True))
-        v.addWidget(_lbl(site, 11, _FAINT))
+        for lbl in (_lbl(title, 13, _TEXT, bold=True), _lbl(site, 11, _FAINT)):
+            lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            v.addWidget(lbl)
 
         frame.mousePressEvent = lambda _e, i=idx: self._select(i)
         return frame
@@ -719,8 +724,8 @@ class SearchScreen(QWidget):
             if item_widget:
                 if i == idx:
                     item_widget.setStyleSheet(
-                        "QFrame { background: rgba(216,180,254,20);"
-                        " border: 1px solid rgba(216,180,254,71); border-radius: 12px; }"
+                        "QFrame { background: rgba(216,180,254,45);"
+                        " border: 1px solid rgba(216,180,254,140); border-radius: 12px; }"
                     )
                 else:
                     item_widget.setStyleSheet("")
