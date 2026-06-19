@@ -74,10 +74,12 @@ jobs:
             --hidden-import scrapers.generic `
             ui.py
 
+      - name: Install FFmpeg
+        run: choco install ffmpeg -y
+
       - name: Smoke test executable
         run: |
-          # Start the app and pipe a blank line as input.
-          # A crash on startup (bad imports, missing files) exits immediately with code 1.
+          # A crash on startup (bad imports, missing files) exits immediately with non-zero.
           # Successfully reaching the interactive prompt means it hangs — we kill it after
           # a timeout and treat that as a pass.
           $proc = Start-Process -FilePath "dist\AudiobookDownloader.exe" `
