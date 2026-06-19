@@ -728,7 +728,7 @@ class SearchScreen(QWidget):
             " border-radius: 8px; font-size: 24px;"
         )
         cover.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        row.addWidget(cover)
+        row.addWidget(cover, 0, Qt.AlignmentFlag.AlignTop)
 
         meta_w = QWidget()
         meta_w.setStyleSheet("background: transparent;")
@@ -754,7 +754,7 @@ class SearchScreen(QWidget):
         meta_v.addWidget(author_lbl)
         meta_v.addWidget(site_lbl)
         meta_v.addStretch()
-        row.addWidget(meta_w, 1)
+        row.addWidget(meta_w, 1, Qt.AlignmentFlag.AlignTop)
 
         frame.mousePressEvent = lambda _e, i=idx: self._select(i)
         frame._cover_lbl = cover
