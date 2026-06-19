@@ -14,8 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Zip app bundle
-        run: zip -r "AudiobookDownloader-macOS.zip" "Audiobook Downloader.app"
+      - name: Zip full project
+        run: |
+          mkdir AudiobookDownloader-macOS
+          cp -r "Audiobook Downloader.app" AudiobookDownloader-macOS/
+          cp main.py utils.py search.py pyproject.toml uv.lock AudiobookDownloader-macOS/
+          cp run.command AudiobookDownloader-macOS/
+          cp -r scrapers AudiobookDownloader-macOS/
+          zip -r "AudiobookDownloader-macOS.zip" AudiobookDownloader-macOS
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

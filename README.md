@@ -34,9 +34,14 @@ Downloads audiobooks from multiple sites, tags each chapter with ID3 metadata, a
 
 [![Download macOS](https://img.shields.io/badge/Download-macOS-black?logo=apple)](https://github.com/talir0drigues/audiobook-magic/releases/latest/download/AudiobookDownloader-macOS.zip)
 
-Unzip and double-click `Audiobook Downloader.app`. Installs everything automatically (Homebrew, FFmpeg, uv) on the first run.
+1. Download and unzip — you'll get an `AudiobookDownloader-macOS` folder
+2. Double-click `Audiobook Downloader.app` inside it
 
-> First time only: macOS may block it. Right-click → **Open** to allow it once.
+Installs Homebrew, FFmpeg, and uv automatically on the first run.
+
+> **First time only — macOS will block the app. Two ways to allow it:**
+> - Right-click the app → **Open** → click **Open** in the dialog, or
+> - Try to open it normally, then go to **System Settings → Privacy & Security** → scroll down and click **Open Anyway**
 
 **Windows**
 
