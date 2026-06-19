@@ -15,6 +15,7 @@ from textual.widgets import (
     ListItem,
     ListView,
     LoadingIndicator,
+    ProgressBar,
     RadioButton,
     RadioSet,
     RichLog,
@@ -116,7 +117,9 @@ class SearchScreen(Screen):
             yield LoadingIndicator(id="spinner")
             yield Label("No results found across all sites.", id="no-results")
             yield ListView(id="results-list")
-            yield Button("← Back", variant="default", id="back-btn")
+            with Horizontal(id="search-actions"):
+                yield Button("← Back", variant="default", id="back-btn")
+                yield Button("Exit  ✕", variant="error", id="search-exit-btn")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -139,6 +142,10 @@ class SearchScreen(Screen):
         for site, title, _ in results:
             lv.append(ListItem(Label(f"[bold]{title}[/bold]\n[dim]{site}[/dim]")))
         lv.display = True
+
+    @on(Button.Pressed, "#search-exit-btn")
+    def _exit_app(self) -> None:
+        self.app.exit()
 
     @on(ListView.Selected, "#results-list")
     def _pick(self, event: ListView.Selected) -> None:
@@ -241,13 +248,12 @@ class BookInfoScreen(Screen):
 
 
 class DownloadScreen(Screen):
-    # Disable escape while downloading to avoid partial downloads
     BINDINGS = [("escape", "noop", "")]
 
     def __init__(self, book_data: dict) -> None:
         super().__init__()
         self._book_data = book_data
-        self._done = False
+        self._total = len(book_data.get("chapters", []))
 
     def compose(self) -> ComposeResult:
         with Container(id="dl-card"):
@@ -255,13 +261,22 @@ class DownloadScreen(Screen):
                 f"[bold]{self._book_data['title']}[/bold]", id="dl-book-title"
             )
             yield Label("", id="dl-status")
+            # Download progress
+            yield Label("", id="dl-progress-label")
+            yield ProgressBar(total=self._total, show_eta=False, id="dl-progress")
+            # Combine progress (shown only during combine phase)
+            with Vertical(id="combine-section"):
+                yield Label("", id="combine-progress-label")
+                yield ProgressBar(total=self._total, show_eta=False, id="combine-progress")
             yield RichLog(id="dl-log", highlight=True, markup=True, wrap=True)
-            with Horizontal(id="dl-footer"):
+            with Horizontal(id="dl-actions"):
                 yield Button("← New Download", variant="primary", id="done-btn")
+                yield Button("Exit  ✕", variant="error", id="dl-exit-btn")
         yield Footer()
 
     def on_mount(self) -> None:
-        self.query_one("#dl-footer").display = False
+        self.query_one("#combine-section").display = False
+        self.query_one("#done-btn").display = False
         self._start()
 
     @work(thread=True)
@@ -276,7 +291,22 @@ class DownloadScreen(Screen):
                 self.query_one("#dl-status", Label).update, msg
             )
 
-        # Redirect main.py's console so Rich Progress doesn't corrupt Textual's display
+        def download_cb(current: int, total: int, title: str) -> None:
+            def _update() -> None:
+                self.query_one("#dl-progress", ProgressBar).update(progress=current, total=total)
+                self.query_one("#dl-progress-label", Label).update(
+                    f"[cyan]Chapter {current} / {total}[/cyan]  {title}"
+                )
+            self.app.call_from_thread(_update)
+
+        def combine_cb(current: int, total: int, title: str) -> None:
+            def _update() -> None:
+                self.query_one("#combine-progress", ProgressBar).update(progress=current, total=total)
+                self.query_one("#combine-progress-label", Label).update(
+                    f"[cyan]Combining {current} / {total}[/cyan]  {title}"
+                )
+            self.app.call_from_thread(_update)
+
         null_console = Console(file=io.StringIO(), quiet=True)
         old_console = _main.console
         _main.console = null_console
@@ -286,7 +316,7 @@ class DownloadScreen(Screen):
             ui_log(f"[cyan]Starting:[/cyan] {self._book_data['title']}")
 
             book_dir, chapter_files = _main.download_and_tag_audiobook(
-                self._book_data
+                self._book_data, progress_callback=download_cb
             )
 
             ui_log(f"[green]✓ Downloaded {len(chapter_files)} chapters[/green]")
@@ -294,8 +324,11 @@ class DownloadScreen(Screen):
             if chapter_files:
                 ui_status("[cyan]Combining into one file...[/cyan]")
                 ui_log("[cyan]Combining chapters...[/cyan]")
+                def _show_combine() -> None:
+                    self.query_one("#combine-section").display = True
+                self.app.call_from_thread(_show_combine)
                 _main.create_combined_audiobook(
-                    self._book_data, book_dir, chapter_files
+                    self._book_data, book_dir, chapter_files, progress_callback=combine_cb
                 )
                 author = self._book_data.get("author", "")
                 combined_name = (
@@ -316,14 +349,17 @@ class DownloadScreen(Screen):
         self.app.call_from_thread(self._finish)
 
     def _finish(self) -> None:
-        self.query_one("#dl-footer").display = True
+        self.query_one("#done-btn").display = True
         self.BINDINGS = [("escape", "go_home", "Home")]
 
     @on(Button.Pressed, "#done-btn")
     def action_go_home(self) -> None:
-        # Pop back to HomeScreen
         self.app.pop_screen()
         self.app.pop_screen()
+
+    @on(Button.Pressed, "#dl-exit-btn")
+    def _exit_app(self) -> None:
+        self.app.exit()
 
     def action_noop(self) -> None:
         pass
@@ -409,6 +445,14 @@ Footer {
     margin-bottom: 1;
 }
 
+#search-actions {
+    height: auto;
+}
+
+#search-exit-btn {
+    margin-left: 1;
+}
+
 /* ── Book Info ── */
 #book-card {
     width: 94;
@@ -479,8 +523,27 @@ Footer {
     margin-bottom: 1;
 }
 
-#dl-footer {
+#dl-progress-label, #combine-progress-label {
+    color: $text-muted;
+    height: 1;
+    margin-top: 1;
+}
+
+#dl-progress, #combine-progress {
+    margin-bottom: 1;
+}
+
+#combine-section {
     height: auto;
+}
+
+#dl-actions {
+    height: auto;
+    margin-top: 1;
+}
+
+#dl-exit-btn {
+    margin-left: 1;
 }
 """
 

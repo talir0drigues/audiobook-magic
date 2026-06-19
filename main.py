@@ -33,7 +33,7 @@ console = Console()
 
 
 
-def create_combined_audiobook(book_data, book_dir, chapter_files):
+def create_combined_audiobook(book_data, book_dir, chapter_files, progress_callback=None):
     """Concatenates chapter MP3s into one file and embeds ID3 chapter markers."""
     title = book_data["title"]
     author = book_data.get("author", "")
@@ -110,6 +110,8 @@ def create_combined_audiobook(book_data, book_dir, chapter_files):
                             chap_title = book_data["chapters"][new_chapter - 1]["title"] if new_chapter <= len(book_data["chapters"]) else f"Chapter {new_chapter}"
                             progress.update(task, completed=new_chapter, description=f"[cyan]Chapter {new_chapter}/{n}: {chap_title}")
                             current_chapter = new_chapter
+                            if progress_callback:
+                                progress_callback(new_chapter, n, chap_title)
 
             proc.wait()
             if proc.returncode != 0:
@@ -193,7 +195,7 @@ def create_combined_audiobook(book_data, book_dir, chapter_files):
         console.print(f"[dim]Removed {deleted} individual chapter file(s).[/dim]")
 
 
-def download_and_tag_audiobook(book_data):
+def download_and_tag_audiobook(book_data, progress_callback=None):
     sanitized_title = book_data["title"]
     author_name = book_data.get("author")
     narrator_name = book_data.get("narrator")
@@ -215,6 +217,12 @@ def download_and_tag_audiobook(book_data):
         task = progress.add_task(
             f"[cyan]Downloading {sanitized_title}...", total=total_chapters
         )
+
+        def _advance(chapter_num: int, title: str) -> None:
+            progress.advance(task)
+            if progress_callback:
+                progress_callback(chapter_num, total_chapters, title)
+
         session = requests.Session()
         for i, chapter in enumerate(book_data["chapters"], start=1):
             link = chapter["url"]
@@ -245,7 +253,7 @@ def download_and_tag_audiobook(book_data):
                             f"[dim]Skipping {chapter_title}, already exists.[/dim]"
                         )
                         downloaded_files.append(final_file_name)
-                        progress.advance(task)
+                        _advance(i, chapter_title)
                         continue
 
                 # --- DOWNLOAD LOGIC ---
@@ -285,7 +293,7 @@ def download_and_tag_audiobook(book_data):
                         progress.log(
                             f"[red]FFmpeg conversion failed for {chapter_title}[/red]"
                         )
-                        progress.advance(task)
+                        _advance(i, chapter_title)
                         continue
 
                 # 2. Session-based sites (direct MP3 links)
@@ -325,7 +333,7 @@ def download_and_tag_audiobook(book_data):
 
                     if result.returncode != 0:
                         progress.log(f"[red]Error downloading {chapter_title}[/red]")
-                        progress.advance(task)
+                        _advance(i, chapter_title)
                         continue
 
                 # --- Add ID3 tags ---
@@ -359,11 +367,11 @@ def download_and_tag_audiobook(book_data):
 
             except Exception as e:
                 console.print(f"[red]Error downloading {chapter_title}: {e}[/red]")
-                progress.advance(task)
+                _advance(i, chapter_title)
                 continue
 
             progress.log(f"[green]✔ Completed {chapter_title}[/green]")
-            progress.advance(task)
+            _advance(i, chapter_title)
 
     console.print(
         "\n[bold green]All chapters downloaded and tagged successfully![/bold green]"
