@@ -203,7 +203,8 @@ def download_and_tag_audiobook(book_data, progress_callback=None):
     artwork_data = book_data.get("artwork_data")
     mime_type = book_data.get("mime_type")
 
-    book_dir = os.path.join(os.getcwd(), "Audiobooks", sanitized_title)
+    _base = book_data.get("save_dir") or os.path.join(os.getcwd(), "Audiobooks")
+    book_dir = os.path.join(_base, sanitized_title)
     os.makedirs(book_dir, exist_ok=True)
 
     total_chapters = len(book_data["chapters"])
