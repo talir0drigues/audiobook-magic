@@ -620,6 +620,9 @@ class SearchScreen(QWidget):
         self._query = query
         self._save_dir = save_dir
         self._results: list[tuple[str, str, str]] = []
+        self._result_cards: list[QFrame] = []
+        self._fetch_workers: list[FetchWorker] = []
+        self._result_data: dict[int, dict] = {}
         self._build()
         self._search()
 
@@ -694,9 +697,16 @@ class SearchScreen(QWidget):
             self._status_lbl.setStyleSheet(f"color:{_RED}; font-size:13px;")
             self._status_lbl.setVisible(True)
             return
-        for i, (site, title, _url) in enumerate(results):
+        for i, (site, title, url) in enumerate(results):
             item = self._make_result_item(i, title, site)
+            self._result_cards.append(item)
             self._results_v.addWidget(item)
+            scraper = get_scraper(url)
+            if scraper:
+                w = FetchWorker(url, scraper)
+                w.book_ready.connect(lambda data, idx=i: self._update_card(idx, data))
+                w.start()
+                self._fetch_workers.append(w)
         self._results_v.addStretch()
         self._results_area.setVisible(True)
 
@@ -704,18 +714,69 @@ class SearchScreen(QWidget):
         frame = QFrame()
         frame.setObjectName("card")
         frame.setCursor(Qt.CursorShape.PointingHandCursor)
-        frame.setProperty("idx", idx)
 
-        v = QVBoxLayout(frame)
-        v.setContentsMargins(14, 12, 14, 12)
-        v.setSpacing(3)
-        for lbl in (_lbl(title, 13, _TEXT, bold=True), _lbl(site, 11, _FAINT)):
-            lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
-            v.addWidget(lbl)
+        row = QHBoxLayout(frame)
+        row.setContentsMargins(14, 12, 14, 12)
+        row.setSpacing(14)
+
+        cover = QLabel("📖")
+        cover.setFixedSize(60, 60)
+        cover.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cover.setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            "stop:0 rgba(216,180,254,46),stop:1 rgba(249,168,212,25));"
+            " border-radius: 8px; font-size: 24px;"
+        )
+        cover.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        row.addWidget(cover)
+
+        meta_w = QWidget()
+        meta_w.setStyleSheet("background: transparent;")
+        meta_w.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        meta_v = QVBoxLayout(meta_w)
+        meta_v.setContentsMargins(0, 2, 0, 2)
+        meta_v.setSpacing(3)
+
+        title_lbl = _lbl(title, 13, _TEXT, bold=True)
+        title_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        title_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+
+        author_lbl = _lbl("", 11, _DIM)
+        author_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        author_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        author_lbl.setVisible(False)
+
+        site_lbl = _lbl(site, 10, _FAINT)
+        site_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        site_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+
+        meta_v.addWidget(title_lbl)
+        meta_v.addWidget(author_lbl)
+        meta_v.addWidget(site_lbl)
+        meta_v.addStretch()
+        row.addWidget(meta_w, 1)
 
         frame.mousePressEvent = lambda _e, i=idx: self._select(i)
+        frame._cover_lbl = cover
+        frame._author_lbl = author_lbl
         return frame
+
+    @_safe_slot
+    def _update_card(self, idx: int, book_data: dict | None) -> None:
+        if not book_data or idx >= len(self._result_cards):
+            return
+        self._result_data[idx] = book_data
+        card = self._result_cards[idx]
+        if book_data.get("artwork_data"):
+            pix = _rounded_pixmap(book_data["artwork_data"], 60)
+            if pix:
+                card._cover_lbl.setPixmap(pix)
+                card._cover_lbl.setText("")
+                card._cover_lbl.setStyleSheet("border-radius: 8px;")
+        author = book_data.get("author")
+        if author:
+            card._author_lbl.setText(f"by  {author}")
+            card._author_lbl.setVisible(True)
 
     def _select(self, idx: int) -> None:
         self._selected_idx = idx
@@ -736,16 +797,29 @@ class SearchScreen(QWidget):
     def _open_selected(self, *_) -> None:
         if self._selected_idx is None:
             return
-        _site, _title, url = self._results[self._selected_idx]
-        scraper = get_scraper(url)
-        if scraper:
+        prefetched = self._result_data.get(self._selected_idx)
+        if prefetched:
             self._win.replace_screen(
-                BookInfoScreen(self._win, url=url, scraper=scraper, save_dir=self._save_dir)
+                BookInfoScreen(self._win, save_dir=self._save_dir, book_data=prefetched)
             )
+        else:
+            _site, _title, url = self._results[self._selected_idx]  # noqa: F841
+            scraper = get_scraper(url)
+            if scraper:
+                self._win.replace_screen(
+                    BookInfoScreen(self._win, url=url, scraper=scraper, save_dir=self._save_dir)
+                )
 
 
 class BookInfoScreen(QWidget):
-    def __init__(self, window: "MainWindow", url: str, scraper, save_dir: str) -> None:
+    def __init__(
+        self,
+        window: "MainWindow",
+        url: str = "",
+        scraper=None,
+        save_dir: str = "",
+        book_data: dict | None = None,
+    ) -> None:
         super().__init__()
         self._win = window
         self._url = url
@@ -753,7 +827,10 @@ class BookInfoScreen(QWidget):
         self._save_dir = save_dir
         self._book_data: dict | None = None
         self._build()
-        self._fetch()
+        if book_data is not None:
+            self._show(book_data)
+        else:
+            self._fetch()
 
     def _build(self) -> None:
         outer = QVBoxLayout(self)
