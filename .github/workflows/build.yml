@@ -72,6 +72,33 @@ jobs:
             --hidden-import scrapers.generic `
             main.py
 
+      - name: Smoke test executable
+        run: |
+          # Start the app and pipe a blank line as input.
+          # A crash on startup (bad imports, missing files) exits immediately with code 1.
+          # Successfully reaching the interactive prompt means it hangs — we kill it after
+          # a timeout and treat that as a pass.
+          $proc = Start-Process -FilePath "dist\AudiobookDownloader.exe" `
+            -PassThru -NoNewWindow `
+            -RedirectStandardInput  "NUL" `
+            -RedirectStandardOutput smoke_out.txt `
+            -RedirectStandardError  smoke_err.txt
+          $exited = $proc.WaitForExit(15000)   # 15-second timeout
+          $output = Get-Content smoke_out.txt -ErrorAction SilentlyContinue
+          $errors = Get-Content smoke_err.txt -ErrorAction SilentlyContinue
+          Write-Host "--- stdout ---"; $output
+          Write-Host "--- stderr ---"; $errors
+          if ($exited -and $proc.ExitCode -ne 0) {
+            Write-Error "App crashed on startup (exit code $($proc.ExitCode))"
+            exit 1
+          }
+          if (-not $exited) {
+            $proc.Kill()
+            Write-Host "Smoke test passed — app reached interactive prompt."
+          } else {
+            Write-Host "Smoke test passed — app exited cleanly (exit code 0)."
+          }
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
