@@ -711,6 +711,7 @@ class SearchScreen(QWidget):
         v.setSpacing(3)
         for lbl in (_lbl(title, 13, _TEXT, bold=True), _lbl(site, 11, _FAINT)):
             lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
             v.addWidget(lbl)
 
         frame.mousePressEvent = lambda _e, i=idx: self._select(i)
@@ -813,9 +814,11 @@ class BookInfoScreen(QWidget):
         self._cover_lbl.setText("📖")
         info_row.addWidget(self._cover_lbl)
 
-        meta_v = QVBoxLayout()
+        meta_w = QWidget()
+        meta_w.setStyleSheet("background: transparent;")
+        meta_v = QVBoxLayout(meta_w)
+        meta_v.setContentsMargins(0, 0, 0, 0)
         meta_v.setSpacing(5)
-        meta_v.setAlignment(Qt.AlignmentFlag.AlignTop)
         self._meta_title    = _lbl("", 16, _TEXT, bold=True)
         self._meta_author   = _lbl("", 12, _DIM)
         self._meta_narrator = _lbl("", 12, _DIM)
@@ -825,7 +828,7 @@ class BookInfoScreen(QWidget):
                   self._meta_year, self._meta_badges):
             meta_v.addWidget(w)
         meta_v.addStretch()
-        info_row.addLayout(meta_v)
+        info_row.addWidget(meta_w, 1, Qt.AlignmentFlag.AlignTop)
         book_v.addLayout(info_row)
 
         # Divider
