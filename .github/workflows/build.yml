@@ -109,6 +109,7 @@ jobs:
   # ── Create GitHub Release (only on version tags) ────────────────────────
   release:
     needs: [build-macos, build-windows]
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
