@@ -6,19 +6,39 @@ cd "$REPO_DIR"
 # .app bundles have a minimal PATH — add common uv install locations
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-_dialog() { osascript -e "display dialog \"$1\" buttons {\"OK\"} default button \"OK\"" 2>/dev/null; }
+LOG="$TMPDIR/audiobook-downloader-launch.log"
+
+_dialog() {
+    osascript -e "display dialog \"$1\" buttons {\"OK\"} default button \"OK\"" 2>/dev/null
+}
+
+_error() {
+    # Show error with last lines of log for context
+    TAIL=$(tail -20 "$LOG" 2>/dev/null | sed "s/\"/'/g")
+    osascript -e "display dialog \"$1\n\nDetails:\n$TAIL\" buttons {\"OK\"} default button \"OK\"" 2>/dev/null
+    exit 1
+}
 
 # ── Install uv if missing ───────────────────────────────────────────────────
 if ! command -v uv &>/dev/null; then
-    _dialog "Installing uv (Python manager) — this only happens once."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    _dialog "First-time setup: installing uv (Python manager). This takes about 10 seconds."
+    curl -LsSf https://astral.sh/uv/install.sh | sh >>"$LOG" 2>&1
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 fi
 
 if ! command -v uv &>/dev/null; then
-    _dialog "Could not install uv. Please install it from https://docs.astral.sh/uv/ then reopen the app."
-    exit 1
+    _error "Could not install uv.\nPlease install it from https://docs.astral.sh/uv/ then reopen the app."
 fi
 
-# ── Launch GUI (FFmpeg check is handled inside the app) ────────────────────
-exec uv run gui.py
+# ── Sync dependencies (downloads PyQt6 ~200 MB on first run) ───────────────
+if ! uv sync >>"$LOG" 2>&1; then
+    _error "Dependency installation failed."
+fi
+
+# ── Launch GUI ──────────────────────────────────────────────────────────────
+uv run gui.py >>"$LOG" 2>&1
+EXIT=$?
+
+if [ $EXIT -ne 0 ]; then
+    _error "The app exited with an error (code $EXIT)."
+fi
