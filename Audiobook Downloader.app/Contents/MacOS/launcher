@@ -1,7 +1,8 @@
 #!/bin/bash
-# Navigate from .app/Contents/MacOS/ up three levels to the project root
-REPO_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-cd "$REPO_DIR"
+# Resources/ lives one level up from MacOS/ — always correct regardless of
+# where the .app is placed (Applications, Downloads, anywhere).
+RESOURCES="$(cd "$(dirname "$0")/../Resources" && pwd)"
+cd "$RESOURCES"
 
 # .app bundles have a minimal PATH — add common uv install locations
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
@@ -13,7 +14,6 @@ _dialog() {
 }
 
 _error() {
-    # Show error with last lines of log for context
     TAIL=$(tail -20 "$LOG" 2>/dev/null | sed "s/\"/'/g")
     osascript -e "display dialog \"$1\n\nDetails:\n$TAIL\" buttons {\"OK\"} default button \"OK\"" 2>/dev/null
     exit 1
